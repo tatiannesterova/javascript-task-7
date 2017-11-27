@@ -22,8 +22,8 @@ function runParallel(jobs, parallelNum, timeout = 1000) {
     const startingSeries = jobsWithIndex.splice(0, parallelNum);
 
     const getPromise = job => new Promise(resolve => {
-            job().then(resolve, resolve);
-            setTimeout(() => resolve(new Error('Promise timeout')), timeout);
+        job().then(resolve, resolve);
+        setTimeout(() => resolve(new Error('Promise timeout')), timeout);
     });
 
     const handler = (translate, ind, resolve) => {
@@ -36,7 +36,7 @@ function runParallel(jobs, parallelNum, timeout = 1000) {
             let jobAndIndex = jobsWithIndex.shift();
 
             getPromise(jobAndIndex.job).then(data => handler(data, jobAndIndex.ind, resolve));
-        }    
+        }
     };
 
     return new Promise(resolve => {
