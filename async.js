@@ -4,10 +4,12 @@ exports.isStar = true;
 exports.runParallel = runParallel;
 
 function getPromise(job, timeout) {
-	return new Promise((resolve, reject) => {
-		setTimeout(() => reject(new Error(`Promise timeout`)), timeout);
-		job().then(resolve, reject);
-	});
+	return function () {
+		return new Promise((resolve, reject) => {
+			setTimeout(() => reject(new Error(`Promise timeout`)), timeout);
+			job().then(resolve, reject);
+		});
+	}
 }
 
 function getListTranslates(translates) {
@@ -28,11 +30,11 @@ function runParallel(jobs, parallelNum, timeout = 1000) {
 	if (jobs.length === 0) {
 		return Promise.resolve([]);
 	}
-	const promises = jobs.map((job, ind) => {return { ind: ind, promise: getPromise(job, timeout) }});
+	const promises = jobs.map((job, ind) => {return { ind: ind, function: getPromise(job, timeout) }});
 
 	let translates = [];
 
-	const amountJobs = promises.length
+	const amountJobs = promises.length;
 	
 	const startingSeries = promises.splice(0, parallelNum);
 
@@ -41,7 +43,7 @@ function runParallel(jobs, parallelNum, timeout = 1000) {
 		if (promises.length > 0) {
 			let promise = promises.shift();
 
-			promise.promise
+			promise.function()
 			    .then(data => handler(data, promise.ind, resolve), 
 			        err => handler(err, promise.ind, resolve));
 			}
@@ -52,7 +54,7 @@ function runParallel(jobs, parallelNum, timeout = 1000) {
 
 	return new Promise((resolve, reject) => {
 		startingSeries.forEach((promise) => {
-			promise.promise
+			promise.function()
 			    .then(data => handler(data, promise.ind, resolve), 
 			        err => handler(err, promise.ind, resolve));
 	    	    });
