@@ -6,8 +6,8 @@ exports.runParallel = runParallel;
 function getPromise(job, timeout) {
 	return function () {
 		return new Promise((resolve, reject) => {
-			setTimeout(() => reject(new Error(`Promise timeout`)), timeout);
 			job().then(resolve, reject);
+			setTimeout(() => reject(new Error(`Promise timeout`)), timeout);
 		});
 	}
 }
@@ -30,7 +30,7 @@ function runParallel(jobs, parallelNum, timeout = 1000) {
 	if (jobs.length === 0) {
 		return Promise.resolve([]);
 	}
-	const promises = jobs.map((job, ind) => {return { ind: ind, function: getPromise(job, timeout) }});
+	let promises = jobs.map((job, ind) => {return { ind: ind, function: getPromise(job, timeout) }});
 
 	let translates = [];
 
