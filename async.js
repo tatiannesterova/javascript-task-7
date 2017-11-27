@@ -3,23 +3,6 @@
 exports.isStar = true;
 exports.runParallel = runParallel;
 
-function getPromise(job, timeout) {
-    return function () {
-        return new Promise((resolve, reject) => {
-            job().then(resolve, reject);
-            setTimeout(() => reject(new Error('Promise timeout')), timeout);
-        });
-    };
-}
-
-function getListTranslates(translates) {
-    return translates.reduce((results, translate) => {
-        results[translate.ind] = translate.data;
-
-        return results;
-    }, []);
-}
-
 /** Функция паралелльно запускает указанное число промисов
  * @param {Array} jobs – функции, которые возвращают промисы
  * @param {Number} parallelNum - число одновременно исполняющихся промисов
@@ -30,35 +13,35 @@ function runParallel(jobs, parallelNum, timeout = 1000) {
     if (jobs.length === 0) {
         return Promise.resolve([]);
     }
-    let promises = jobs.map((job, ind) => {
-        return { ind: ind, function: getPromise(job, timeout) };
-    });
+    let jobsWithIndex = jobs.map((job, ind) => ({ ind: ind, job: job }));
 
     let translates = [];
 
-    const amountJobs = promises.length;
+    let counterExecutedJobs = 0;
 
-    const startingSeries = promises.splice(0, parallelNum);
+    const startingSeries = jobsWithIndex.splice(0, parallelNum);
 
-    const handler = function (translate, ind, resolve) {
-        translates.push({ ind: ind, data: translate });
-        if (promises.length > 0) {
-            let promise = promises.shift();
+    const getPromise = job => new Promise(resolve => {
+            job().then(resolve, resolve);
+            setTimeout(() => resolve(new Error('Promise timeout')), timeout);
+    });
 
-            promise.function()
-                .then(data => handler(data, promise.ind, resolve),
-                    err => handler(err, promise.ind, resolve));
+    const handler = (translate, ind, resolve) => {
+        translates[ind] = translate;
+        counterExecutedJobs++;
+        if (counterExecutedJobs === jobs.length) {
+            resolve(translates);
         }
-        if (translates.length === amountJobs) {
-            resolve(getListTranslates(translates));
-        }
+        if (jobsWithIndex.length > 0) {
+            let jobAndIndex = jobsWithIndex.shift();
+
+            getPromise(jobAndIndex.job).then(data => handler(data, jobAndIndex.ind, resolve));
+        }    
     };
 
     return new Promise(resolve => {
-        startingSeries.forEach(promise => {
-            promise.function()
-                .then(data => handler(data, promise.ind, resolve),
-                    err => handler(err, promise.ind, resolve));
+        startingSeries.forEach(jobAndIndex => {
+            getPromise(jobAndIndex.job).then(data => handler(data, jobAndIndex.ind, resolve));
         });
     });
 }
