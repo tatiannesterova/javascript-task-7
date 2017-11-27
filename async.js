@@ -4,21 +4,21 @@ exports.isStar = true;
 exports.runParallel = runParallel;
 
 function getPromise(job, timeout) {
-	return function () {
-		return new Promise((resolve, reject) => {
-			job().then(resolve, reject);
-			setTimeout(() => reject(new Error(`Promise timeout`)), timeout);
-		});
-	}
+    return function () {
+        return new Promise((resolve, reject) => {
+            job().then(resolve, reject);
+            setTimeout(() => reject(new Error('Promise timeout')), timeout);
+        });
+    };
 }
 
 function getListTranslates(translates) {
-	return translates.reduce((results, translate) => {
-		results[translate.ind] = translate.data;
+    return translates.reduce((results, translate) => {
+        results[translate.ind] = translate.data;
 
-		return results;
-	}, [])
-};
+        return results;
+    }, []);
+}
 
 /** Функция паралелльно запускает указанное число промисов
  * @param {Array} jobs – функции, которые возвращают промисы
@@ -27,36 +27,38 @@ function getListTranslates(translates) {
  */
 
 function runParallel(jobs, parallelNum, timeout = 1000) {
-	if (jobs.length === 0) {
-		return Promise.resolve([]);
-	}
-	let promises = jobs.map((job, ind) => {return { ind: ind, function: getPromise(job, timeout) }});
+    if (jobs.length === 0) {
+        return Promise.resolve([]);
+    }
+    let promises = jobs.map((job, ind) => {
+        return { ind: ind, function: getPromise(job, timeout) };
+    });
 
-	let translates = [];
+    let translates = [];
 
-	const amountJobs = promises.length;
-	
-	const startingSeries = promises.splice(0, parallelNum);
+    const amountJobs = promises.length;
+    
+    const startingSeries = promises.splice(0, parallelNum);
 
-	const handler = function (data, ind, resolve) {
-		translates.push({ ind: ind, data: data });
-		if (promises.length > 0) {
-			let promise = promises.shift();
+    const handler = function (data, ind, resolve) {
+        translates.push({ ind: ind, data: data });
+        if (promises.length > 0) {
+            let promise = promises.shift();
 
-			promise.function()
-			    .then(data => handler(data, promise.ind, resolve), 
-			        err => handler(err, promise.ind, resolve));
-			}
-		if (translates.length === amountJobs) {
-			resolve(getListTranslates(translates));
-		};
-	}
+            promise.function()
+                .then(data => handler(data, promise.ind, resolve),
+                    err => handler(err, promise.ind, resolve));
+            }
+        if (translates.length === amountJobs) {
+            resolve(getListTranslates(translates));
+        }
+    };
 
-	return new Promise((resolve, reject) => {
-		startingSeries.forEach((promise) => {
-			promise.function()
-			    .then(data => handler(data, promise.ind, resolve), 
-			        err => handler(err, promise.ind, resolve));
-	    	    });
-	    	});
+    return new Promise((resolve, reject) => {
+        startingSeries.forEach((promise) => {
+            promise.function()
+                .then(data => handler(data, promise.ind, resolve), 
+                    err => handler(err, promise.ind, resolve));
+                });
+            });
 }
