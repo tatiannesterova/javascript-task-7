@@ -37,28 +37,28 @@ function runParallel(jobs, parallelNum, timeout = 1000) {
     let translates = [];
 
     const amountJobs = promises.length;
-    
+
     const startingSeries = promises.splice(0, parallelNum);
 
-    const handler = function (data, ind, resolve) {
-        translates.push({ ind: ind, data: data });
+    const handler = function (translate, ind, resolve) {
+        translates.push({ ind: ind, data: translate });
         if (promises.length > 0) {
             let promise = promises.shift();
 
             promise.function()
                 .then(data => handler(data, promise.ind, resolve),
                     err => handler(err, promise.ind, resolve));
-            }
+        }
         if (translates.length === amountJobs) {
             resolve(getListTranslates(translates));
         }
     };
 
-    return new Promise((resolve, reject) => {
-        startingSeries.forEach((promise) => {
+    return new Promise(resolve => {
+        startingSeries.forEach(promise => {
             promise.function()
-                .then(data => handler(data, promise.ind, resolve), 
+                .then(data => handler(data, promise.ind, resolve),
                     err => handler(err, promise.ind, resolve));
-                });
-            });
+        });
+    });
 }
