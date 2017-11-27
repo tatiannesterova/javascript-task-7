@@ -76,5 +76,5 @@ function runParallel(jobs, parallelNum, timeout = 1000) {
 
 	//let promise = Promise.resolve([]);
 
-    return runParallelAll(promises, parallelNum);
+    return (jobs.length === 0) ? Promise.resolve([]) : runParallelAll(promises, parallelNum);
 }
