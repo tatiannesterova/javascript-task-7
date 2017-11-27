@@ -36,22 +36,32 @@ function getListTranslates(translates) {
 	}, [])
 };
 
-function runParallelAll(seriesJobs) {
+function runParallelAll(promises, parallelNum) {
 	let translates = [];
-	const amountJobs = seriesJobs.length;
+	const amountJobs = promises.length
+	const startingSeries = promises.splice(0, parallelNum);
+
+	const handler = function (data, ind, resolve) {
+		translates.push({ ind: ind, data: data });
+		if (promises.length > 0) {
+			let promise = promises.shift();
+
+			promise.promise
+			    .then(data => handler(data, promise.ind, resolve), 
+			        err => handler(err, promise.ind, resolve));
+			}
+		if (translates.length === amountJobs) {
+			resolve(getListTranslates(translates));
+		};
+	}
 
 	return new Promise((resolve, reject) => {
-		seriesJobs.forEach((job, ind) => {
-			job
-			    .then(data => handler(translates, data, ind, amountJobs), 
-			        err => handler(translates, err, ind, amountJobs))
-	    	    .then(isFinish => {
-	    	    	if (isFinish) {
-	    	    		resolve(getListTranslates(translates))
-	    	    	}
+		startingSeries.forEach((promise) => {
+			promise.promise
+			    .then(data => handler(data, promise.ind, resolve), 
+			        err => handler(err, promise.ind, resolve));
 	    	    });
 	    	});
-	});
 }
 
 /** Функция паралелльно запускает указанное число промисов
@@ -61,15 +71,10 @@ function runParallelAll(seriesJobs) {
  */
 
 function runParallel(jobs, parallelNum, timeout = 1000) {
-	const promises = jobs.map(job => getPromise(job, timeout))
-	const queueRun = cutJobs(promises, parallelNum);
+	const promises = jobs.map((job, ind) => {return { ind: ind, promise: getPromise(job, timeout) }})
+	//const queueRun = cutJobs(promises, parallelNum);
 
-	let promise = Promise.resolve([]);
+	//let promise = Promise.resolve([]);
 
-    queueRun.forEach(series => {
-    	promise = promise
-    	    .then((results) => runParallelAll(series).then(data => results.concat(data)))
-    	});
-
-    return promise;
+    return runParallelAll(promises, parallelNum);
 }
