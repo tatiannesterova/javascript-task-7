@@ -30,7 +30,7 @@ function runParallel(jobs, parallelNum, timeout = 1000) {
 	if (jobs.length === 0) {
 		return Promise.resolve([]);
 	}
-	const promises = jobs.map((job, ind) => {return { ind: ind, function: getPromise(job, timeout) }});
+	let promises = jobs.map((job, ind) => {return { ind: ind, function: getPromise(job, timeout) }});
 
 	let translates = [];
 
