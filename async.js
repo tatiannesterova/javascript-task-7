@@ -28,6 +28,12 @@ function runParallel(jobs, parallelNum, timeout = 1000) {
 
     let nextJob = parallelNum;
 
+    return new Promise(resolve => {
+        startingSeries.forEach((job, index) => {
+            runJob(job, index, resolve);
+        });
+    });
+
     function runJob(job, index, resolve) {
         getPromise(job, timeout).then(data => handler(data, index, resolve));
     }
@@ -45,10 +51,4 @@ function runParallel(jobs, parallelNum, timeout = 1000) {
             runJob(jobs[currentJob], currentJob, resolve);
         }
     }
-
-    return new Promise(resolve => {
-        startingSeries.forEach((job, index) => {
-            runJob(job, index, resolve);
-        });
-    });
 }
