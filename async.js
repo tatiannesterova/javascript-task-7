@@ -3,6 +3,13 @@
 exports.isStar = true;
 exports.runParallel = runParallel;
 
+function getPromise(job, timeout) {
+    return new Promise(resolve => {
+        job().then(resolve, resolve);
+        setTimeout(() => resolve(new Error('Promise timeout')), timeout);
+    });
+}
+
 /** Функция паралелльно запускает указанное число промисов
  * @param {Array} jobs – функции, которые возвращают промисы
  * @param {Number} parallelNum - число одновременно исполняющихся промисов
@@ -13,35 +20,35 @@ function runParallel(jobs, parallelNum, timeout = 1000) {
     if (jobs.length === 0) {
         return Promise.resolve([]);
     }
-    let jobsWithIndex = jobs.map((job, ind) => ({ ind: ind, job: job }));
-
-    let translates = [];
+    const results = [];
 
     let counterExecutedJobs = 0;
 
-    const startingSeries = jobsWithIndex.splice(0, parallelNum);
+    const startingSeries = jobs.slice(0, parallelNum);
 
-    const getPromise = job => new Promise(resolve => {
-        job().then(resolve, resolve);
-        setTimeout(() => resolve(new Error('Promise timeout')), timeout);
-    });
+    let nextJob = parallelNum;
 
-    const handler = (translate, ind, resolve) => {
-        translates[ind] = translate;
+    function runJob(job, index, resolve) {
+        getPromise(job, timeout).then(data => handler(data, index, resolve));
+    }
+
+    function handler(data, index, resolve) {
+        results[index] = data;
         counterExecutedJobs++;
         if (counterExecutedJobs === jobs.length) {
-            resolve(translates);
+            resolve(results);
         }
-        if (jobsWithIndex.length > 0) {
-            let jobAndIndex = jobsWithIndex.shift();
+        if (nextJob < jobs.length) {
+            const currentJob = nextJob;
 
-            getPromise(jobAndIndex.job).then(data => handler(data, jobAndIndex.ind, resolve));
+            nextJob++;
+            runJob(jobs[currentJob], currentJob, resolve);
         }
-    };
+    }
 
     return new Promise(resolve => {
-        startingSeries.forEach(jobAndIndex => {
-            getPromise(jobAndIndex.job).then(data => handler(data, jobAndIndex.ind, resolve));
+        startingSeries.forEach((job, index) => {
+            runJob(job, index, resolve);
         });
     });
 }
